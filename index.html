@@ -113,6 +113,16 @@ function fillClasses(){var g=el("ig").value,h="",i;for(i=0;i<letters.length;i++)
 function fillStudents(){var a=roster[el("ic").value]||[],h="",i;for(i=0;i<a.length;i++)h+='<option value="'+esc(a[i])+'">'+esc(a[i])+'</option>';el("is").innerHTML=h}
 function drawPicked(){var h="",i;for(i=0;i<picked.length;i++)h+='<span class="chip">'+esc(picked[i].name)+' • '+picked[i].cls+' <button type="button" class="removePicked" data-rm="'+i+'">×</button></span>';el("picked").innerHTML=h||'<span class="muted">لم يتم اختيار طالب</span>';var b=document.querySelectorAll(".removePicked");for(i=0;i<b.length;i++)b[i].onclick=function(){picked.splice(parseInt(this.getAttribute("data-rm"),10),1);drawPicked()}}
 
+function todayISO(){var d=new Date(),m=String(d.getMonth()+1);if(m.length<2)m="0"+m;var day=String(d.getDate());if(day.length<2)day="0"+day;return d.getFullYear()+"-"+m+"-"+day}
+function openIncident(){el("incident").className="modal show";if(!el("incidentDate").value)el("incidentDate").value=todayISO();fillGrades();el("ig").value=grade;fillClasses();drawPicked()}
+function addPicked(){var n=el("is").value,c=el("ic").value,i,found=false;for(i=0;i<picked.length;i++)if(picked[i].name===n&&picked[i].cls===c)found=true;if(n&&!found){picked.push({name:n,cls:c});drawPicked()}}
+async function saveIncident(){
+ if(!picked.length||!el("note").value.replace(/^\s+|\s+$/g,"")){alert("اختر طالبًا واكتب الملاحظة");return}
+ try{var id=(new Date()).getTime(),rec={id:id,incident_date:el("incidentDate").value||todayISO(),type:el("type").value,note:el("note").value,author:el("author").value,follow_up:el("follow").value==="نعم",owner:el("follow").value==="نعم"?el("owner").value:"",status:""};
+ if(rec.follow_up&&!rec.owner){alert("اختر المسؤول عن المتابعة");return}
+ var a=await sb.from("incidents").insert(rec);if(a.error)throw a.error;var links=[],i;for(i=0;i<picked.length;i++)links.push({incident_id:id,student_name:picked[i].name,class_name:picked[i].cls});a=await sb.from("incident_students").insert(links);if(a.error){await sb.from("incidents").delete().eq("id",id);throw a.error}
+ el("note").value="";el("incident").className="modal";await loadCloud();alert("تم حفظ الملاحظة في البيانات المشتركة")}catch(e){alert("لم يتم الحفظ: "+(e.message||e))}
+}
 function studentNotes(n,c){var out=[],i,j;for(i=0;i<notes.length;i++){for(j=0;j<notes[i].students.length;j++){if(notes[i].students[j].name===n&&notes[i].students[j].cls===c){out.push(notes[i]);break}}}out.sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""))});return out}
 function displayDate(v){if(!v)return "بدون تاريخ";if(/^\d{4}-\d{2}-\d{2}$/.test(v)){var z=v.split("-");return z[2]+"/"+z[1]+"/"+z[0]}return v}
 function openHistory(n,c){
@@ -155,7 +165,7 @@ function exportExcel(){
 function refreshManage(){var a=roster[cls]||[],h="",i;el("manageWhere").innerHTML="الفصل الحالي: "+cls;for(i=0;i<a.length;i++)h+='<option value="'+esc(a[i])+'">'+esc(a[i])+'</option>';el("manageStudent").innerHTML=h;h="";for(var c in roster)if(c!==cls)h+='<option value="'+c+'">'+c+'</option>';el("moveClass").innerHTML=h}
 function openManage(){el("manage").className="modal show";refreshManage()}
 async function addStudent(){
- var n=el("newName").value.replace(/^\\s+|\\s+$/g,"");if(!n)return;var r=await sb.from("roster_students").insert({student_name:n,class_name:cls});if(r.error){alert(r.error.code==="23505"?"الاسم موجود بالفعل":"تعذر الإضافة: "+r.error.message);return}el("newName").value="";await loadCloud();refreshManage()
+ var n=el("newName").value.replace(/^\s+|\s+$/g,"");if(!n)return;var r=await sb.from("roster_students").insert({student_name:n,class_name:cls});if(r.error){alert(r.error.code==="23505"?"الاسم موجود بالفعل":"تعذر الإضافة: "+r.error.message);return}el("newName").value="";await loadCloud();refreshManage()
 }
 async function deleteStudent(){
  var n=el("manageStudent").value;if(!n||!confirm("حذف "+n+" من "+cls+"؟"))return;var r=await sb.from("roster_students").delete().eq("student_name",n).eq("class_name",cls);if(r.error){alert("تعذر الحذف: "+r.error.message);return}await loadCloud();refreshManage()
@@ -169,7 +179,7 @@ el("ig").onchange=fillClasses;el("ic").onchange=fillStudents;el("addPickedBtn").
 el("addStudentBtn").onclick=addStudent;el("deleteBtn").onclick=deleteStudent;el("moveBtn").onclick=moveStudent;
 async function migrateOldLocal(){
  try{var old=JSON.parse(localStorage.getItem("primary_notes_v5")||"[]");if(!old.length)return;if(!confirm("يوجد "+old.length+" ملاحظة قديمة على هذا الجهاز. هل تريد نقلها إلى البيانات المشتركة الآن؟"))return;
- for(var i=0;i<old.length;i++){var o=old[i],ex=await sb.from("incidents").select("id").eq("id",o.id).maybeSingle();if(ex.data)continue;var rec={id:o.id,incident_date:/^\\d{4}-\\d{2}-\\d{2}$/.test(o.date||"")?o.date:todayISO(),type:o.type||"سلوك",note:o.note||"",author:o.author||"",follow_up:o.follow==="نعم",owner:o.owner||"",status:o.status||"",resolved_date:o.resolvedDate||null};var a=await sb.from("incidents").insert(rec);if(a.error)continue;var links=[];for(var j=0;j<(o.students||[]).length;j++)links.push({incident_id:o.id,student_name:o.students[j].name,class_name:o.students[j].cls});if(links.length)await sb.from("incident_students").insert(links)}
+ for(var i=0;i<old.length;i++){var o=old[i],ex=await sb.from("incidents").select("id").eq("id",o.id).maybeSingle();if(ex.data)continue;var rec={id:o.id,incident_date:/^\d{4}-\d{2}-\d{2}$/.test(o.date||"")?o.date:todayISO(),type:o.type||"سلوك",note:o.note||"",author:o.author||"",follow_up:o.follow==="نعم",owner:o.owner||"",status:o.status||"",resolved_date:o.resolvedDate||null};var a=await sb.from("incidents").insert(rec);if(a.error)continue;var links=[];for(var j=0;j<(o.students||[]).length;j++)links.push({incident_id:o.id,student_name:o.students[j].name,class_name:o.students[j].cls});if(links.length)await sb.from("incident_students").insert(links)}
  localStorage.setItem("primary_notes_v5_migrated","1");await loadCloud();alert("تم نقل الملاحظات القديمة إلى البيانات المشتركة.")}catch(e){alert("تعذر نقل بعض البيانات القديمة: "+(e.message||e))}
 }
 loadCloud().then(function(){if(localStorage.getItem("primary_notes_v5_migrated")!=="1")migrateOldLocal()});
