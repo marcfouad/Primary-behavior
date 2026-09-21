@@ -87,6 +87,7 @@ async function loadCloud(){
  }catch(e){cloudStatus("⚠️ تعذر الاتصال بالسحابة");alert("تعذر تحميل البيانات المشتركة: "+(e.message||e))}
 }
 function noteCount(n,c){var k=0,i,j;for(i=0;i<notes.length;i++){for(j=0;j<notes[i].students.length;j++){if(notes[i].students[j].name===n&&notes[i].students[j].cls===c){k++;break}}}return k}
+function noteTypeSummary(n,c){var z={"سلوك":0,"شكوى":0,"إيجابية":0,"أخرى":0},i,j,t,out=[];for(i=0;i<notes.length;i++){for(j=0;j<notes[i].students.length;j++){if(notes[i].students[j].name===n&&notes[i].students[j].cls===c){t=notes[i].type||"أخرى";if(z[t]===undefined)z["أخرى"]++;else z[t]++;break}}}if(z["سلوك"])out.push("🟡 سلوك "+z["سلوك"]);if(z["شكوى"])out.push("🔴 شكوى "+z["شكوى"]);if(z["إيجابية"])out.push("🟢 إيجابية "+z["إيجابية"]);if(z["أخرى"])out.push("⚪ أخرى "+z["أخرى"]);return out.join(" • ")}
 function studentActions(n,c){var a=[],i;for(i=0;i<actions.length;i++)if(actions[i].student_name===n&&actions[i].class_name===c)a.push(actions[i]);return a}
 function actionSummary(n,c){var a=studentActions(n,c),z={"إنذار":0,"رفد":0,"حجز":0},i;for(i=0;i<a.length;i++)if(z[a[i].action_type]!==undefined)z[a[i].action_type]++;var t=[];if(z["إنذار"])t.push("⚠️ إنذار "+z["إنذار"]);if(z["رفد"])t.push("رفد "+z["رفد"]);if(z["حجز"])t.push("حجز "+z["حجز"]);return t.join(" • ")}
 var actionTarget=null;
@@ -101,7 +102,7 @@ function renderPending(){var box=el("pendingFollowups");if(!box)return;var a=[],
  el("classes").innerHTML=html;
  var filtered=[];for(i=0;i<arr.length;i++)if(arr[i].indexOf(q)!==-1)filtered.push(arr[i]);
  el("classTitle").innerHTML=cls+" — "+filtered.length+" طالب";html="";
- for(i=0;i<filtered.length;i++)html+='<div class="card"><div class="name" data-history="'+encodeURIComponent(filtered[i])+'">'+esc(filtered[i])+'</div><span class="count" data-history="'+encodeURIComponent(filtered[i])+'">'+noteCount(filtered[i],cls)+' ملاحظة'+(actionSummary(filtered[i],cls)?' • '+esc(actionSummary(filtered[i],cls)):'')+'</span><button class="mini" data-add="'+encodeURIComponent(filtered[i])+'">+ ملاحظة</button></div>';
+ for(i=0;i<filtered.length;i++)html+='<div class="card"><div class="name" data-history="'+encodeURIComponent(filtered[i])+'">'+esc(filtered[i])+'</div><span class="count" data-history="'+encodeURIComponent(filtered[i])+'">'+(noteTypeSummary(filtered[i],cls)||"لا توجد ملاحظات")+(actionSummary(filtered[i],cls)?' • '+esc(actionSummary(filtered[i],cls)):'')+'</span><button class="mini" data-add="'+encodeURIComponent(filtered[i])+'">+ ملاحظة</button></div>';
  el("students").innerHTML=html||'<div class="card">لا توجد أسماء.</div>';
  var gs=document.querySelectorAll("[data-grade]");for(i=0;i<gs.length;i++)gs[i].onclick=function(){grade=this.getAttribute("data-grade");cls=grade+"A";render()};
  var cs=document.querySelectorAll("[data-class]");for(i=0;i<cs.length;i++)cs[i].onclick=function(){cls=this.getAttribute("data-class");render()};
@@ -147,20 +148,20 @@ async function resolveIncident(id,n,c){
 async function deleteIncident(id,n,c){
  if(!confirm("حذف هذه الواقعة نهائيًا؟"))return;var r=await sb.from("incidents").delete().eq("id",id);if(r.error){alert("تعذر الحذف: "+r.error.message);return}await loadCloud();openHistory(n,c)
 }
-function xmlEsc(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function csvCell(v){var s=String(v==null?"":v).replace(/"/g,'""');return '"'+s+'"'}
 function exportExcel(){
- var rows=[],i,j,people,status;
+ var rows=[],i,j,people,status,line,csv;
  rows.push(["تاريخ الواقعة","الصف/الفصل","الطالب","نوع الملاحظة","تفاصيل الواقعة","كاتب الملاحظة","تحتاج متابعة","المسؤول عن المتابعة","الحالة","تاريخ الحل","الطلاب المرتبطون"]);
  for(i=0;i<notes.length;i++){
   people=[];for(j=0;j<notes[i].students.length;j++)people.push(notes[i].students[j].name+" ("+notes[i].students[j].cls+")");
   status=notes[i].status==="تم الحل"?"تم الحل":"";
-  for(j=0;j<notes[i].students.length;j++)rows.push([displayDate(notes[i].date),notes[i].students[j].cls,notes[i].students[j].name,notes[i].type||"",notes[i].note||"",notes[i].author||"",notes[i].follow||"",notes[i].owner||"",status,displayDate(notes[i].resolvedDate||""),people.join("، ")]);
+  for(j=0;j<notes[i].students.length;j++)rows.push([displayDate(notes[i].date),notes[i].students[j].cls,notes[i].students[j].name,notes[i].type||"",notes[i].note||"",notes[i].author||"",notes[i].follow||"",notes[i].owner||"",status,notes[i].resolvedDate?displayDate(notes[i].resolvedDate):"",people.join("، ")]);
  }
- var x='<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="الملاحظات"><Table>';
- for(i=0;i<rows.length;i++){x+="<Row>";for(j=0;j<rows[i].length;j++)x+='<Cell><Data ss:Type="String">'+xmlEsc(rows[i][j])+'</Data></Cell>';x+="</Row>"}
- x+="</Table></Worksheet></Workbook>";
- var blob=new Blob([x],{type:"application/vnd.ms-excel;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="متابعة_السلوك_"+todayISO()+".xls";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},1000);
+ csv="\ufeff";
+ for(i=0;i<rows.length;i++){line=[];for(j=0;j<rows[i].length;j++)line.push(csvCell(rows[i][j]));csv+=line.join(",")+"\r\n"}
+ var blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="متابعة_السلوك_"+todayISO()+".csv";a.style.display="none";document.body.appendChild(a);a.click();
+ setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},1500);
 }
 function refreshManage(){var a=roster[cls]||[],h="",i;el("manageWhere").innerHTML="الفصل الحالي: "+cls;for(i=0;i<a.length;i++)h+='<option value="'+esc(a[i])+'">'+esc(a[i])+'</option>';el("manageStudent").innerHTML=h;h="";for(var c in roster)if(c!==cls)h+='<option value="'+c+'">'+c+'</option>';el("moveClass").innerHTML=h}
 function openManage(){el("manage").className="modal show";refreshManage()}
