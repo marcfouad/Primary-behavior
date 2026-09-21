@@ -39,7 +39,6 @@ button{font:inherit}.tab,.btn{border:0;border-radius:12px;padding:11px 14px;font
 <div class="field"><label>كاتب الملاحظة</label><input id="author"></div>
 <div class="field"><label>تحتاج متابعة؟</label><select id="follow"><option>لا</option><option>نعم</option></select></div>
 <div class="field"><label>المسؤول عن المتابعة</label><input id="owner"></div>
-<div class="field"><label>الحالة</label><select id="status"><option>جديدة</option><option>جاري المتابعة</option><option>تم الحل</option></select></div>
 <button id="saveBtn" class="btn primary" style="width:100%">حفظ الملاحظة</button></div></div>
 
 <div id="history" class="modal"><div class="sheet">
@@ -88,7 +87,7 @@ function drawPicked(){var h="",i;for(i=0;i<picked.length;i++)h+='<span class="ch
 function todayISO(){var d=new Date(),m=String(d.getMonth()+1);if(m.length<2)m="0"+m;var day=String(d.getDate());if(day.length<2)day="0"+day;return d.getFullYear()+"-"+m+"-"+day}
 function openIncident(){el("incident").className="modal show";if(!el("incidentDate").value)el("incidentDate").value=todayISO();fillGrades();el("ig").value=grade;fillClasses();drawPicked()}
 function addPicked(){var n=el("is").value,c=el("ic").value,i,found=false;for(i=0;i<picked.length;i++)if(picked[i].name===n&&picked[i].cls===c)found=true;if(n&&!found){picked.push({name:n,cls:c});drawPicked()}}
-function saveIncident(){if(!picked.length||!el("note").value.replace(/^\s+|\s+$/g,"")){alert("اختر طالبًا واكتب الملاحظة");return}notes.push({id:(new Date()).getTime(),students:clone(picked),type:el("type").value,note:el("note").value,author:el("author").value,follow:el("follow").value,owner:el("owner").value,status:el("status").value,date:el("incidentDate").value||todayISO(),createdAt:(new Date()).toLocaleString("ar-EG")});saveNotes();el("note").value="";el("incident").className="modal";render();alert("تم حفظ الملاحظة")}
+function saveIncident(){if(!picked.length||!el("note").value.replace(/^\s+|\s+$/g,"")){alert("اختر طالبًا واكتب الملاحظة");return}notes.push({id:(new Date()).getTime(),students:clone(picked),type:el("type").value,note:el("note").value,author:el("author").value,follow:el("follow").value,owner:el("owner").value,status:"",date:el("incidentDate").value||todayISO(),createdAt:(new Date()).toLocaleString("ar-EG")});saveNotes();el("note").value="";el("incident").className="modal";render();alert("تم حفظ الملاحظة")}
 function studentNotes(n,c){var out=[],i,j;for(i=0;i<notes.length;i++){for(j=0;j<notes[i].students.length;j++){if(notes[i].students[j].name===n&&notes[i].students[j].cls===c){out.push(notes[i]);break}}}out.sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""))});return out}
 function displayDate(v){if(!v)return "بدون تاريخ";if(/^\d{4}-\d{2}-\d{2}$/.test(v)){var z=v.split("-");return z[2]+"/"+z[1]+"/"+z[0]}return v}
 function openHistory(n,c){
@@ -96,10 +95,16 @@ function openHistory(n,c){
  el("historyName").innerHTML=esc(n);el("historyClass").innerHTML="الفصل "+c+" • "+a.length+" ملاحظة";
  for(i=0;i<a.length;i++){
   others=[];for(j=0;j<a[i].students.length;j++)if(!(a[i].students[j].name===n&&a[i].students[j].cls===c))others.push(a[i].students[j].name+" ("+a[i].students[j].cls+")");
-  h+='<div class="historyItem"><div class="historyDate">📅 '+esc(displayDate(a[i].date))+' — '+esc(a[i].type||"ملاحظة")+'</div><div class="historyNote">'+esc(a[i].note||"")+'</div><div class="meta">✍️ الكاتب: '+esc(a[i].author||"—")+(others.length?'<br>👥 مرتبط بالواقعة: '+esc(others.join("، ")):"")+'<br>👤 المسؤول: '+esc(a[i].owner||"—")+'<br>الحالة: <span class="statusBadge">'+esc(a[i].status||"جديدة")+'</span></div></div>';
+  h+='<div class="historyItem"><div class="historyDate">📅 '+esc(displayDate(a[i].date))+' — '+esc(a[i].type||"ملاحظة")+'</div><div class="historyNote">'+esc(a[i].note||"")+'</div><div class="meta">✍️ الكاتب: '+esc(a[i].author||"—")+(others.length?'<br>👥 مرتبط بالواقعة: '+esc(others.join("، ")):"")+'<br>👤 المسؤول: '+esc(a[i].owner||"—")+(a[i].status==="تم الحل"?'<br>الحالة: <span class="statusBadge">✓ تم الحل</span>':'<br><button class="btn primary resolveBtn" data-resolve="'+a[i].id+'">✓ تعليم كـ تم الحل</button>')+'</div></div>';
  }
  el("historyList").innerHTML=h||'<div class="historyItem">لا توجد ملاحظات مسجلة لهذا الطالب.</div>';
  el("history").className="modal show";
+ var rb=document.querySelectorAll(".resolveBtn"),k;for(k=0;k<rb.length;k++)rb[k].onclick=function(){resolveIncident(this.getAttribute("data-resolve"),n,c)};
+}
+function resolveIncident(id,n,c){
+ var i;if(!confirm("تأكيد أن المشكلة تم حلها؟"))return;
+ for(i=0;i<notes.length;i++)if(String(notes[i].id)===String(id)){notes[i].status="تم الحل";notes[i].resolvedDate=todayISO();break}
+ saveNotes();render();openHistory(n,c);
 }
 function refreshManage(){var a=roster[cls]||[],h="",i;el("manageWhere").innerHTML="الفصل الحالي: "+cls;for(i=0;i<a.length;i++)h+='<option value="'+esc(a[i])+'">'+esc(a[i])+'</option>';el("manageStudent").innerHTML=h;h="";for(var c in roster)if(c!==cls)h+='<option value="'+c+'">'+c+'</option>';el("moveClass").innerHTML=h}
 function openManage(){el("manage").className="modal show";refreshManage()}
