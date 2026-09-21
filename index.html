@@ -52,15 +52,19 @@ try{notes=JSON.parse(localStorage.getItem('primary_notes_v3')||'[]')}catch(e){}
 try{roster=JSON.parse(localStorage.getItem('primary_roster_v4')||'null')||JSON.parse(JSON.stringify(base))}catch(e){roster=JSON.parse(JSON.stringify(base))}
 function persistRoster(){try{localStorage.setItem('primary_roster_v4',JSON.stringify(roster))}catch(e){}}
 function render(){
- $('grades').innerHTML=['1','2','3'].map(g=>'<button class="tab '+(g==grade?'on':'')+'" onclick="setGrade(\\''+g+'\\')">الصف '+({'1':'الأول','2':'الثاني','3':'الثالث'}[g])+'</button>').join('');
- $('classes').innerHTML=letters.map(l=>{let c=grade+l;return '<button class="tab '+(c==cls?'on':'')+'" onclick="cls=\\''+c+'\\';render()">'+c+'</button>'}).join('');
- let q=$('search').value.trim(),a=(roster[cls]||[]).filter(n=>n.includes(q));$('classTitle').textContent=cls+' — '+a.length+' طالب';
- $('students').innerHTML=a.length?a.map(n=>'<div class="card student"><div class="name">'+esc(n)+'</div><span class="count">'+count(n,cls)+' ملاحظة</span><button class="mini" onclick="openFor(\\''+encodeURIComponent(n)+'\\',\\''+cls+'\\')">+ ملاحظة</button></div>').join(''):'<div class="card">لا توجد أسماء محمّلة في هذا الفصل.</div>'
+ $('grades').innerHTML=['1','2','3'].map(g=>`<button class="tab ${g==grade?'on':''}" data-grade="${g}">الصف ${{'1':'الأول','2':'الثاني','3':'الثالث'}[g]}</button>`).join('');
+ document.querySelectorAll('[data-grade]').forEach(b=>b.onclick=()=>setGrade(b.dataset.grade));
+ $('classes').innerHTML=letters.map(l=>{let c=grade+l;return `<button class="tab ${c==cls?'on':''}" data-class="${c}">${c}</button>`}).join('');
+ document.querySelectorAll('[data-class]').forEach(b=>b.onclick=()=>{cls=b.dataset.class;render()});
+ let q=$('search').value.trim(),a=(roster[cls]||[]).filter(n=>n.includes(q));
+ $('classTitle').textContent=cls+' — '+a.length+' طالب';
+ $('students').innerHTML=a.length?a.map((n,i)=>`<div class="card student"><div class="name">${esc(n)}</div><span class="count">${count(n,cls)} ملاحظة</span><button class="mini" data-student-index="${i}">+ ملاحظة</button></div>`).join(''):'<div class="card">لا توجد أسماء في هذا الفصل.</div>';
+ document.querySelectorAll('[data-student-index]').forEach(b=>b.onclick=()=>{let n=a[Number(b.dataset.studentIndex)];openFor(encodeURIComponent(n),cls)});
 }
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 function setGrade(g){grade=g;cls=g+'A';render()} function count(n,c){return notes.filter(x=>x.students?.some(s=>s.name==n&&s.cls==c)).length}
 function openFor(n,c){picked=[{name:decodeURIComponent(n),cls:c}];openIncident(false)}
-function openIncident(clear=true){if(clear)picked=[];$('incident').classList.add('show');$('ig').innerHTML=['1','2','3'].map(g=>'<option value="'+g+'">الصف '+({'1':'الأول','2':'الثاني','3':'الثالث'}[g])+'</option>').join('');$('ig').value=grade;fillClasses();drawPicked()}
+function openIncident(clear=true){if(clear)picked=[];$('incident').classList.add('show');$('ig').innerHTML=['1','2','3'].map(g=>`<option value="${g}">الصف ${{'1':'الأول','2':'الثاني','3':'الثالث'}[g]}</option>`).join('');$('ig').value=grade;fillClasses();drawPicked()}
 function fillClasses(){$('ic').innerHTML=letters.map(l=>'<option value="'+$('ig').value+l+'">'+$('ig').value+l+'</option>').join('');fillStudents()}
 function fillStudents(){$('is').innerHTML=(roster[$('ic').value]||[]).map(n=>'<option>'+esc(n)+'</option>').join('')}
 $('ig').onchange=fillClasses;$('ic').onchange=fillStudents;
