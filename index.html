@@ -24,7 +24,7 @@ button{font:inherit}.tab,.btn{border:0;border-radius:12px;padding:11px 14px;font
 <main class="wrap">
 <div id="grades" class="row"></div><div id="classes" class="row"></div>
 <input id="search" class="search" placeholder="🔎 ابحث باسم الطالب...">
-<div class="topline"><h3 id="classTitle"></h3><button id="manageBtn" class="btn outline">⚙️ إدارة الطلاب</button></div>
+<div class="topline"><h3 id="classTitle"></h3><div class="actions"><button id="exportBtn" class="btn outline">📊 Export Excel</button><button id="manageBtn" class="btn outline">⚙️ إدارة الطلاب</button></div></div>
 <div id="students"></div></main><button id="fab" class="fab">+</button>
 
 <div id="incident" class="modal"><div class="sheet"><button id="closeIncident" class="btn outline">رجوع</button><h2>إضافة ملاحظة</h2>
@@ -95,23 +95,44 @@ function openHistory(n,c){
  el("historyName").innerHTML=esc(n);el("historyClass").innerHTML="الفصل "+c+" • "+a.length+" ملاحظة";
  for(i=0;i<a.length;i++){
   others=[];for(j=0;j<a[i].students.length;j++)if(!(a[i].students[j].name===n&&a[i].students[j].cls===c))others.push(a[i].students[j].name+" ("+a[i].students[j].cls+")");
-  h+='<div class="historyItem"><div class="historyDate">📅 '+esc(displayDate(a[i].date))+' — '+esc(a[i].type||"ملاحظة")+'</div><div class="historyNote">'+esc(a[i].note||"")+'</div><div class="meta">✍️ الكاتب: '+esc(a[i].author||"—")+(others.length?'<br>👥 مرتبط بالواقعة: '+esc(others.join("، ")):"")+'<br>👤 المسؤول: '+esc(a[i].owner||"—")+(a[i].status==="تم الحل"?'<br>الحالة: <span class="statusBadge">✓ تم الحل</span>':'<br><button class="btn primary resolveBtn" data-resolve="'+a[i].id+'">✓ تعليم كـ تم الحل</button>')+'</div></div>';
+  h+='<div class="historyItem"><div class="historyDate">📅 '+esc(displayDate(a[i].date))+' — '+esc(a[i].type||"ملاحظة")+'</div><div class="historyNote">'+esc(a[i].note||"")+'</div><div class="meta">✍️ الكاتب: '+esc(a[i].author||"—")+(others.length?'<br>👥 مرتبط بالواقعة: '+esc(others.join("، ")):"")+'<br>👤 المسؤول: '+esc(a[i].owner||"—")+(a[i].status==="تم الحل"?'<br>الحالة: <span class="statusBadge">✓ تم الحل</span>':'<br><button class="btn primary resolveBtn" data-resolve="'+a[i].id+'">✓ تعليم كـ تم الحل</button>')+'<br><button class="btn danger deleteIncidentBtn" data-delete-incident="'+a[i].id+'" style="margin-top:8px">🗑 حذف الواقعة</button></div></div>';
  }
  el("historyList").innerHTML=h||'<div class="historyItem">لا توجد ملاحظات مسجلة لهذا الطالب.</div>';
  el("history").className="modal show";
  var rb=document.querySelectorAll(".resolveBtn"),k;for(k=0;k<rb.length;k++)rb[k].onclick=function(){resolveIncident(this.getAttribute("data-resolve"),n,c)};
+ var db=document.querySelectorAll(".deleteIncidentBtn");for(k=0;k<db.length;k++)db[k].onclick=function(){deleteIncident(this.getAttribute("data-delete-incident"),n,c)};
 }
 function resolveIncident(id,n,c){
  var i;if(!confirm("تأكيد أن المشكلة تم حلها؟"))return;
  for(i=0;i<notes.length;i++)if(String(notes[i].id)===String(id)){notes[i].status="تم الحل";notes[i].resolvedDate=todayISO();break}
  saveNotes();render();openHistory(n,c);
 }
+function deleteIncident(id,n,c){
+ var i;if(!confirm("حذف هذه الواقعة نهائيًا؟"))return;
+ for(i=notes.length-1;i>=0;i--)if(String(notes[i].id)===String(id)){notes.splice(i,1);break}
+ saveNotes();render();openHistory(n,c);
+}
+function xmlEsc(v){return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function exportExcel(){
+ var rows=[],i,j,people,status;
+ rows.push(["تاريخ الواقعة","الصف/الفصل","الطالب","نوع الملاحظة","تفاصيل الواقعة","كاتب الملاحظة","تحتاج متابعة","المسؤول عن المتابعة","الحالة","تاريخ الحل","الطلاب المرتبطون"]);
+ for(i=0;i<notes.length;i++){
+  people=[];for(j=0;j<notes[i].students.length;j++)people.push(notes[i].students[j].name+" ("+notes[i].students[j].cls+")");
+  status=notes[i].status==="تم الحل"?"تم الحل":"";
+  for(j=0;j<notes[i].students.length;j++)rows.push([displayDate(notes[i].date),notes[i].students[j].cls,notes[i].students[j].name,notes[i].type||"",notes[i].note||"",notes[i].author||"",notes[i].follow||"",notes[i].owner||"",status,displayDate(notes[i].resolvedDate||""),people.join("، ")]);
+ }
+ var x='<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="الملاحظات"><Table>';
+ for(i=0;i<rows.length;i++){x+="<Row>";for(j=0;j<rows[i].length;j++)x+='<Cell><Data ss:Type="String">'+xmlEsc(rows[i][j])+'</Data></Cell>';x+="</Row>"}
+ x+="</Table></Worksheet></Workbook>";
+ var blob=new Blob([x],{type:"application/vnd.ms-excel;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="متابعة_السلوك_"+todayISO()+".xls";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},1000);
+}
 function refreshManage(){var a=roster[cls]||[],h="",i;el("manageWhere").innerHTML="الفصل الحالي: "+cls;for(i=0;i<a.length;i++)h+='<option value="'+esc(a[i])+'">'+esc(a[i])+'</option>';el("manageStudent").innerHTML=h;h="";for(var c in roster)if(c!==cls)h+='<option value="'+c+'">'+c+'</option>';el("moveClass").innerHTML=h}
 function openManage(){el("manage").className="modal show";refreshManage()}
 function addStudent(){var n=el("newName").value.replace(/^\s+|\s+$/g,"");if(!n)return;if((roster[cls]||[]).indexOf(n)>=0){alert("الاسم موجود بالفعل");return}roster[cls].push(n);saveRoster();el("newName").value="";refreshManage();render()}
 function deleteStudent(){var n=el("manageStudent").value;if(n&&confirm("حذف "+n+" من "+cls+"؟")){var a=roster[cls],x=a.indexOf(n);if(x>=0)a.splice(x,1);saveRoster();refreshManage();render()}}
 function moveStudent(){var n=el("manageStudent").value,to=el("moveClass").value;if(n&&to&&confirm("نقل "+n+" إلى "+to+"؟")){var a=roster[cls],x=a.indexOf(n);if(x>=0)a.splice(x,1);if(roster[to].indexOf(n)<0)roster[to].push(n);saveRoster();refreshManage();render()}}
-el("search").onkeyup=render;el("fab").onclick=function(){picked=[];openIncident()};el("manageBtn").onclick=openManage;
+el("search").onkeyup=render;el("exportBtn").onclick=exportExcel;el("fab").onclick=function(){picked=[];openIncident()};el("manageBtn").onclick=openManage;
 el("closeIncident").onclick=function(){el("incident").className="modal"};el("closeHistory").onclick=function(){el("history").className="modal"};el("closeManage").onclick=function(){el("manage").className="modal"};
 el("ig").onchange=fillClasses;el("ic").onchange=fillStudents;el("addPickedBtn").onclick=addPicked;el("saveBtn").onclick=saveIncident;
 el("addStudentBtn").onclick=addStudent;el("deleteBtn").onclick=deleteStudent;el("moveBtn").onclick=moveStudent;
