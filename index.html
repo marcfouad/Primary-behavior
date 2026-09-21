@@ -19,7 +19,7 @@ button{font:inherit}.tab,.btn{border:0;border-radius:12px;padding:11px 14px;font
 .historyItem{background:#f7f9fc;border:1px solid #e1e6ef;border-radius:14px;padding:12px;margin:10px 0}
 .historyDate{font-weight:bold;color:#27457d;margin-bottom:7px}.historyNote{font-size:16px;line-height:1.6;margin:7px 0}
 .meta{font-size:13px;color:#596579;line-height:1.7}.statusBadge{display:inline-block;padding:4px 8px;border-radius:12px;background:#e8eef9;font-weight:bold}
-</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>.type-سلوك{background:#fff3cd!important}.type-شكوى{background:#f8d7da!important}.type-إيجابية{background:#d1e7dd!important}.followBox{margin:12px 0;padding:12px;border:1px solid #ddd;border-radius:14px;background:#fff}.followItem{padding:9px 0;border-bottom:1px solid #eee}.removePicked{border:0;background:#eee;border-radius:50%;margin-right:6px}</style></head><body>
+</style><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>.type-سلوك{background:#fff3cd!important;color:#664d03!important;padding:3px 8px;border-radius:10px}.type-شكوى{background:#f8d7da!important;color:#842029!important;padding:3px 8px;border-radius:10px}.type-إيجابية{background:#d1e7dd!important;color:#0f5132!important;padding:3px 8px;border-radius:10px}.followBox{margin:12px 0;padding:12px;border:1px solid #ddd;border-radius:14px;background:#fff}.followItem{padding:9px 0;border-bottom:1px solid #eee}.removePicked{border:0;background:#eee;border-radius:50%;margin-right:6px}</style></head><body>
 <header><div class="wrap" style="text-align:center"><img src="school-logo.jpg" alt="Collège Saint-Marc" style="width:78px;height:78px;object-fit:contain;border-radius:50%;margin-bottom:7px"><h1>متابعة سلوك المرحلة الابتدائية</h1><div class="muted">الصفوف الأول والثاني والثالث</div><div id="cloudStatus" class="muted" style="font-size:12px;margin-top:5px">☁️ جاري الاتصال...</div></div></header>
 <main class="wrap">
 <div id="grades" class="row"></div><div id="classes" class="row"></div>
@@ -36,9 +36,9 @@ button{font:inherit}.tab,.btn{border:0;border-radius:12px;padding:11px 14px;font
 <div class="field"><label>تاريخ الواقعة</label><input id="incidentDate" type="date"></div>
 <div class="field"><label>نوع الملاحظة</label><select id="type"><option>سلوك</option><option>شكوى</option><option>إيجابية</option><option>أخرى</option></select></div>
 <div class="field"><label>الملاحظة</label><textarea id="note" rows="4"></textarea></div>
-<div class="field"><label>كاتب الملاحظة</label><input id="author"></div>
+<div class="field"><label>كاتب الملاحظة</label><select id="author"><option value="كوكي">كوكي</option><option value="فابي">فابي</option><option value="جونا">جونا</option><option value="سوزي">سوزي</option><option value="عبد الرحمن">عبد الرحمن</option><option value="مارك">مارك</option></select></div>
 <div class="field"><label>تحتاج متابعة؟</label><select id="follow"><option>لا</option><option>نعم</option></select></div>
-<div class="field"><label>المسؤول عن المتابعة</label><input id="owner"></div>
+<div class="field"><label>المسؤول عن المتابعة</label><select id="owner"><option value="">— اختر المسؤول —</option><option value="كوكي">كوكي</option><option value="فابي">فابي</option><option value="جونا">جونا</option><option value="سوزي">سوزي</option><option value="عبد الرحمن">عبد الرحمن</option><option value="مارك">مارك</option></select></div>
 <button id="saveBtn" class="btn primary" style="width:100%">حفظ الملاحظة</button></div></div>
 
 <div id="history" class="modal"><div class="sheet">
@@ -93,7 +93,7 @@ var actionTarget=null;
 function openAction(n,c){actionTarget={name:n,cls:c};el("actionStudent").innerHTML=esc(n)+" • "+c;el("actionDate").value=todayISO();el("actionNote").value="";el("actionModal").className="modal show"}
 async function saveAction(){if(!actionTarget)return;var rec={student_name:actionTarget.name,class_name:actionTarget.cls,action_type:el("actionType").value,action_date:el("actionDate").value||todayISO(),note:el("actionNote").value};var r=await sb.from("student_actions").insert(rec);if(r.error){alert("تعذر حفظ الإجراء: "+r.error.message);return}el("actionModal").className="modal";await loadCloud();openHistory(actionTarget.name,actionTarget.cls)}
 async function deleteAction(id,n,c){if(!confirm("حذف هذا الإجراء؟"))return;var r=await sb.from("student_actions").delete().eq("id",id);if(r.error){alert("تعذر الحذف: "+r.error.message);return}await loadCloud();openHistory(n,c)}
-function renderPending(){var box=el("pendingFollowups");if(!box)return;var a=[],i;for(i=0;i<notes.length;i++)if(notes[i].follow&&notes[i].owner&&notes[i].status!=="تم الحل")a.push(notes[i]);if(!a.length){box.innerHTML="";return}var h='<div class="followBox"><b>📌 متابعات لم يتم حلها ('+a.length+')</b>';for(i=0;i<a.length;i++)h+='<div class="followItem"><b>'+esc(a[i].owner)+'</b> — '+esc(a[i].note||a[i].type)+' <span class="muted">'+esc(displayDate(a[i].date))+'</span></div>';box.innerHTML=h+'</div>'}function render(){renderPending();
+function renderPending(){var box=el("pendingFollowups");if(!box)return;var a=[],i;for(i=0;i<notes.length;i++)if(notes[i].follow==="نعم"&&notes[i].owner&&notes[i].status!=="تم الحل")a.push(notes[i]);if(!a.length){box.innerHTML="";return}var h='<div class="followBox"><b>📌 متابعات لم يتم حلها ('+a.length+')</b>';for(i=0;i<a.length;i++)h+='<div class="followItem"><b>'+esc(a[i].owner)+'</b> — '+esc(a[i].note||a[i].type)+' <span class="muted">'+esc(displayDate(a[i].date))+'</span></div>';box.innerHTML=h+'</div>'}function render(){renderPending();
  var i,b,html="",q=el("search").value||"",arr=roster[cls]||[];
  for(i=1;i<=3;i++)html+='<button class="tab '+(String(i)===grade?'on':'')+'" data-grade="'+i+'">الصف '+(i===1?'الأول':i===2?'الثاني':'الثالث')+'</button>';
  el("grades").innerHTML=html; html="";
@@ -111,16 +111,8 @@ function renderPending(){var box=el("pendingFollowups");if(!box)return;var a=[],
 function fillGrades(){el("ig").innerHTML='<option value="1">الصف الأول</option><option value="2">الصف الثاني</option><option value="3">الصف الثالث</option>'}
 function fillClasses(){var g=el("ig").value,h="",i;for(i=0;i<letters.length;i++)h+='<option value="'+g+letters[i]+'">'+g+letters[i]+'</option>';el("ic").innerHTML=h;fillStudents()}
 function fillStudents(){var a=roster[el("ic").value]||[],h="",i;for(i=0;i<a.length;i++)h+='<option value="'+esc(a[i])+'">'+esc(a[i])+'</option>';el("is").innerHTML=h}
-function drawPicked(){var h="",i;for(i=0;i<picked.length;i++)h+='<span class="chip">'+esc(picked[i].name)+' • '+picked[i].cls+'</span>';el("picked").innerHTML=h||'<span class="muted">لم يتم اختيار طالب</span>'}
-function todayISO(){var d=new Date(),m=String(d.getMonth()+1);if(m.length<2)m="0"+m;var day=String(d.getDate());if(day.length<2)day="0"+day;return d.getFullYear()+"-"+m+"-"+day}
-function openIncident(){el("incident").className="modal show";if(!el("incidentDate").value)el("incidentDate").value=todayISO();fillGrades();el("ig").value=grade;fillClasses();drawPicked()}
-function addPicked(){var n=el("is").value,c=el("ic").value,i,found=false;for(i=0;i<picked.length;i++)if(picked[i].name===n&&picked[i].cls===c)found=true;if(n&&!found){picked.push({name:n,cls:c});drawPicked()}}
-async function saveIncident(){
- if(!picked.length||!el("note").value.replace(/^\\s+|\\s+$/g,"")){alert("اختر طالبًا واكتب الملاحظة");return}
- try{var id=(new Date()).getTime(),rec={id:id,incident_date:el("incidentDate").value||todayISO(),type:el("type").value,note:el("note").value,author:el("author").value,follow_up:el("follow").value==="نعم",owner:el("owner").value,status:""};
- var a=await sb.from("incidents").insert(rec);if(a.error)throw a.error;var links=[],i;for(i=0;i<picked.length;i++)links.push({incident_id:id,student_name:picked[i].name,class_name:picked[i].cls});a=await sb.from("incident_students").insert(links);if(a.error){await sb.from("incidents").delete().eq("id",id);throw a.error}
- el("note").value="";el("incident").className="modal";await loadCloud();alert("تم حفظ الملاحظة في البيانات المشتركة")}catch(e){alert("لم يتم الحفظ: "+(e.message||e))}
-}
+function drawPicked(){var h="",i;for(i=0;i<picked.length;i++)h+='<span class="chip">'+esc(picked[i].name)+' • '+picked[i].cls+' <button type="button" class="removePicked" data-rm="'+i+'">×</button></span>';el("picked").innerHTML=h||'<span class="muted">لم يتم اختيار طالب</span>';var b=document.querySelectorAll(".removePicked");for(i=0;i<b.length;i++)b[i].onclick=function(){picked.splice(parseInt(this.getAttribute("data-rm"),10),1);drawPicked()}}
+
 function studentNotes(n,c){var out=[],i,j;for(i=0;i<notes.length;i++){for(j=0;j<notes[i].students.length;j++){if(notes[i].students[j].name===n&&notes[i].students[j].cls===c){out.push(notes[i]);break}}}out.sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""))});return out}
 function displayDate(v){if(!v)return "بدون تاريخ";if(/^\d{4}-\d{2}-\d{2}$/.test(v)){var z=v.split("-");return z[2]+"/"+z[1]+"/"+z[0]}return v}
 function openHistory(n,c){
@@ -128,7 +120,7 @@ function openHistory(n,c){
  el("historyName").innerHTML=esc(n);el("historyClass").innerHTML="الفصل "+c+" • "+a.length+" ملاحظة";
  for(i=0;i<a.length;i++){
   others=[];for(j=0;j<a[i].students.length;j++)if(!(a[i].students[j].name===n&&a[i].students[j].cls===c))others.push(a[i].students[j].name+" ("+a[i].students[j].cls+")");
-  h+='<div class="historyItem"><div class="historyDate">📅 '+esc(displayDate(a[i].date))+' — '+esc(a[i].type||"ملاحظة")+'</div><div class="historyNote">'+esc(a[i].note||"")+'</div><div class="meta">✍️ الكاتب: '+esc(a[i].author||"—")+(others.length?'<br>👥 مرتبط بالواقعة: '+esc(others.join("، ")):"")+'<br>👤 المسؤول: '+esc(a[i].owner||"—")+(a[i].status==="تم الحل"?'<br>الحالة: <span class="statusBadge">✓ تم الحل</span>':'<br><button class="btn primary resolveBtn" data-resolve="'+a[i].id+'">✓ تعليم كـ تم الحل</button>')+'<br><button class="btn danger deleteIncidentBtn" data-delete-incident="'+a[i].id+'" style="margin-top:8px">🗑 حذف الواقعة</button></div></div>';
+  h+='<div class="historyItem"><div class="historyDate">📅 '+esc(displayDate(a[i].date))+' — <span class="type-'+esc(a[i].type||"ملاحظة")+'">'+esc(a[i].type||"ملاحظة")+'</span></div><div class="historyNote">'+esc(a[i].note||"")+'</div><div class="meta">✍️ الكاتب: '+esc(a[i].author||"—")+(others.length?'<br>👥 مرتبط بالواقعة: '+esc(others.join("، ")):"")+'<br>👤 المسؤول: '+esc(a[i].owner||"—")+(a[i].status==="تم الحل"?'<br>الحالة: <span class="statusBadge">✓ تم الحل</span>':'<br><button class="btn primary resolveBtn" data-resolve="'+a[i].id+'">✓ تعليم كـ تم الحل</button>')+'<br><button class="btn danger deleteIncidentBtn" data-delete-incident="'+a[i].id+'" style="margin-top:8px">🗑 حذف الواقعة</button></div></div>';
  }
  var acts=studentActions(n,c);for(i=0;i<acts.length;i++){h+='<div class="historyItem"><div class="historyDate">📌 '+esc(displayDate(acts[i].action_date))+' — '+esc(acts[i].action_type)+'</div>'+(acts[i].note?'<div class="historyNote">'+esc(acts[i].note)+'</div>':'')+'<button class="btn danger deleteActionBtn" data-delete-action="'+acts[i].id+'">🗑 حذف الإجراء</button></div>'}
  h='<button class="btn primary addActionBtn" style="width:100%;margin:10px 0">+ إضافة إجراء تربوي (إنذار / رفد / حجز)</button>'+h;
